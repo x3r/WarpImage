@@ -292,7 +292,8 @@ public class WarpGrid {
 	private final static float m22 = 0.5f;
 	private final static float m31 = 1.0f;
 
-	protected void interpolateSpline(float[] xKnots, float[] yKnots, int offset, int length, float[] splineY, int splineOffset, int splineLength) {
+	protected void interpolateSpline(float[] xKnots, float[] yKnots, int offset, int length, float[] splineY,
+			int splineOffset, int splineLength) {
 		int index = offset;
 		int end = offset + length - 1;
 		float x0, x1;
@@ -328,7 +329,8 @@ public class WarpGrid {
 		}
 	}
 
-	protected void interpolateSpline2(float[] xKnots, float[] yKnots, int offset, float[] splineY, int splineOffset, int splineLength) {
+	protected void interpolateSpline2(float[] xKnots, float[] yKnots, int offset, float[] splineY, int splineOffset,
+			int splineLength) {
 		int index = offset;
 		float leftX, rightX;
 		float leftY, rightY;
