@@ -12,8 +12,11 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.imageio.ImageIO;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -57,27 +60,23 @@ class WarpImageTest extends JPanel {
 	private WarpGrid srcGrid;
 	private WarpGrid dstGrid;
 	private WarpFilter warpFilter;
-	private static final int GRID_NUMBER = 10;
+	private static final int GRID_NUMBER = 20;
 	private Graphics2D graphics;
-	private int imageWidth;
-	private int imageHeight;
+	private Point clickedPoint;
+	private Point releasedPoint;
+	private List<Point> nearestPoints;
+	private int radii = 100;
+	private int radius = radii / 2;
 
 	public WarpImageTest() {
 		try {
-			inputImage = ImageIO.read(new File("D:/Image/cats.png"));
+			inputImage = ImageIO.read(new File("D:/Image/image.jpg"));
 			outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
-			imageHeight = inputImage.getHeight();
-			imageWidth = inputImage.getWidth();
 			srcGrid = new WarpGrid(GRID_NUMBER, GRID_NUMBER, inputImage.getWidth(), inputImage.getHeight());
 			dstGrid = new WarpGrid(GRID_NUMBER, GRID_NUMBER, inputImage.getWidth(), inputImage.getHeight());
-			//
-			// dstGrid.xGrid[6] += imageWidth / (2 * GRID_NUMBER);
-			// dstGrid.yGrid[6] += imageHeight / (2 * GRID_NUMBER);
-			//
-			// srcGrid.xGrid[1] += imageWidth / (2 * GRID_NUMBER);
-			// srcGrid.yGrid[1] += imageHeight / (2 * GRID_NUMBER);
+			nearestPoints = new ArrayList<Point>();
 			warpImage(1, 1, srcGrid.xGrid[1], srcGrid.yGrid[1]);
-			drawLines(srcGrid, Color.BLACK);
+			// drawLines(dstGrid, Color.BLACK);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -90,34 +89,59 @@ class WarpImageTest extends JPanel {
 
 			@Override
 			public void mousePressed(MouseEvent e) {
-				Point point = findIndex(e.getX(), e.getY());
-				System.out.println("Clicked Point: " + e.getX() + ", " + e.getY());
-				System.out.println("Grid index: " + point.x + " , Point2: " + point.y);
-				if (point.x == GRID_NUMBER * GRID_NUMBER)
-					point.x--;
-				if (point.y == GRID_NUMBER * GRID_NUMBER)
-					point.y--;
-				int dx = imageWidth / GRID_NUMBER;
-				int dy = imageHeight / GRID_NUMBER;
-				System.out.println("Original: Grid Point: " + srcGrid.xGrid[point.x] + " " + srcGrid.yGrid[point.y]);
-
-				// dstGrid.xGrid[point.x] = (int) srcGrid.xGrid[point.x] + dx /
-				// 2;
-				// dstGrid.yGrid[point.y] = (int) srcGrid.yGrid[point.y] + dy /
-				// 2;
-				System.out.println("Changed:");
-				System.out.println(dstGrid.xGrid[point.x] + " " + dstGrid.yGrid[point.y]);
-				warpImage(point.x, point.y, e.getX(), e.getY());
-				drawLines(dstGrid, Color.BLUE);
-				
+				warpImage(1, 1, dstGrid.xGrid[1], dstGrid.yGrid[1]);
+				clickedPoint = new Point(e.getX(), e.getY());
+				Point circlePoint = new Point(e.getX() - radius, e.getY() - radius);
+				drawCircle(circlePoint, radii, Color.RED);
+//				drawLines(dstGrid, Color.BLUE);
 				repaint();
 			}
 
 			@Override
 			public void mouseReleased(MouseEvent e) {
+				warpImage(1, 1, dstGrid.xGrid[1], dstGrid.yGrid[1]);
+				repaint();
+			}
 
+		});
+		addMouseMotionListener(new MouseAdapter() {
+			@Override
+			public void mouseDragged(MouseEvent e) {
+				releasedPoint = new Point(e.getX(), e.getY());
+				Point circlePoint = new Point(e.getX() - radius, e.getY() - radius);
+				Point point = findIndex(clickedPoint.x, clickedPoint.y);
+
+				int deltaX = releasedPoint.x - clickedPoint.x;
+				int deltaY = releasedPoint.y - clickedPoint.y;
+				clickedPoint.x = releasedPoint.x;
+				clickedPoint.y = releasedPoint.y;
+				nearestPoints = new ArrayList<Point>();
+				findAllNearestPoints(point, radius / 2);
+				// System.out.println(nearestPoints.size());
+				for (Point p : nearestPoints) {
+					dstGrid.xGrid[p.x] = dstGrid.xGrid[p.x] + deltaX;
+					dstGrid.yGrid[p.y] = dstGrid.yGrid[p.y] + deltaY;
+				}
+				warpImage(1, 1, dstGrid.xGrid[1], dstGrid.yGrid[1]);
+//				drawLines(dstGrid, Color.BLUE);
+				drawCircle(circlePoint, radii, Color.RED);
+				repaint();
+			}
+
+			@Override
+			public void mouseMoved(MouseEvent e) {
+//				warpImage(1, 1, dstGrid.xGrid[1], dstGrid.yGrid[1]);
+//				drawCircle(new Point(e.getX() - radius, e.getY() - radius), radii, Color.RED);
+//				repaint();
 			}
 		});
+	}
+
+	public void drawCircle(Point point, int radius, Color color) {
+		graphics = (Graphics2D) outputImage.createGraphics();
+		graphics.setStroke(new BasicStroke(2));
+		graphics.setColor(color);
+		graphics.drawOval(point.x, point.y, radius, radius);
 	}
 
 	@Override
@@ -152,7 +176,6 @@ class WarpImageTest extends JPanel {
 				int x2 = (int) srcGrid.xGrid[index + 1];
 				int y2 = (int) srcGrid.yGrid[index + 1];
 				graphics.drawLine(x1, y1, x2, y2);
-				//System.out.println("x1: " + x1 + ", y1: " + y1 + ", x2: " + x2 + ", y2: " + y2);
 			}
 		index = 0;
 		for (int i = 0; i < GRID_NUMBER; i++)
@@ -163,8 +186,6 @@ class WarpImageTest extends JPanel {
 				int x2 = (int) srcGrid.xGrid[index + GRID_NUMBER];
 				int y2 = (int) srcGrid.yGrid[index + GRID_NUMBER];
 				graphics.drawLine(x1, y1, x2, y2);
-				// System.out.println("x1: " + x1 + ", y1: " + y1 + ", x2: " +
-				// x2 + ", y2: " + y2);
 			}
 
 	}
@@ -174,8 +195,8 @@ class WarpImageTest extends JPanel {
 		int minDistance = 214748364;
 		for (int i = 0; i < GRID_NUMBER * GRID_NUMBER; i++)
 			for (int j = 0; j < GRID_NUMBER * GRID_NUMBER; j++) {
-				int calculatedDistance = (int) Math.sqrt(Math.pow((x - srcGrid.xGrid[i]), 2)
-						+ Math.pow((y - srcGrid.yGrid[j]), 2));
+				int calculatedDistance = (int) Math.sqrt(Math.pow((x - dstGrid.xGrid[i]), 2)
+						+ Math.pow((y - dstGrid.yGrid[j]), 2));
 				if (calculatedDistance < minDistance && i == j) {
 					minDistance = calculatedDistance;
 					point.x = i;
@@ -183,5 +204,20 @@ class WarpImageTest extends JPanel {
 				}
 			}
 		return point;
+	}
+
+	public void findAllNearestPoints(Point point, int distance) {
+		int maxDistance = (int) Math.sqrt(distance);
+		for (int j = 0 - maxDistance; j < maxDistance; j++) {
+			for (int i = point.x - maxDistance; i <= point.x + maxDistance; i++) {
+				int x = j * GRID_NUMBER + i;
+				if (x >= 0 && x < GRID_NUMBER * GRID_NUMBER) {
+					if ((Math.pow((dstGrid.xGrid[x] - clickedPoint.x), 2) + Math.pow(
+							(dstGrid.yGrid[x] - clickedPoint.y), 2)) <= distance * distance) {
+						nearestPoints.add(new Point(x, x));
+					}
+				}
+			}
+		}
 	}
 }
