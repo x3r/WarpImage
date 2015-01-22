@@ -20,10 +20,12 @@ import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
+import com.jhlabs.image.ScaleFilter;
 import com.jhlabs.image.WarpFilter;
 import com.jhlabs.image.WarpGrid;
 
@@ -70,42 +72,54 @@ class WarpImageTest extends JPanel {
 	private List<Point> nearestPoints;
 	private int radii = 100;
 	private int radius = radii / 2;
-	private JButton circleButton;
-	private JButton polygonButton;
-	private boolean isPolygon;
+	private boolean isPolygon = true;
 	private boolean drawNow;
 	private List<Integer> xPoints;
 	private List<Integer> yPoints;
 	private Polygon polygon;
+	private JButton fileChooserButton;
+	private JFileChooser fileChooser;
+	private BufferedImage scaleImage;
 
 	public WarpImageTest() {
 		try {
-			circleButton = new JButton("Circle");
-			polygonButton = new JButton("Polygon");
-			this.add(circleButton);
-			this.add(polygonButton);
-			inputImage = ImageIO.read(new File("D:/Image/image.jpg"));
-			outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
-			srcGrid = new WarpGrid(GRID_NUMBER, GRID_NUMBER, inputImage.getWidth(), inputImage.getHeight());
-			dstGrid = new WarpGrid(GRID_NUMBER, GRID_NUMBER, inputImage.getWidth(), inputImage.getHeight());
-			warpImage(1, 1, srcGrid.xGrid[1], srcGrid.yGrid[1]);
-			drawLines(dstGrid, Color.BLACK);
+			fileChooserButton = new JButton("Choose an Image");
+			add(fileChooserButton);
 
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		circleButton.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent paramActionEvent) {
-				isPolygon = false;
-			}
-		});
-		polygonButton.addActionListener(new ActionListener() {
+		fileChooserButton.addActionListener(new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent event) {
-				isPolygon = true;
+				fileChooser = new JFileChooser();
+				ExtensionFileFilter fileFilter = new ExtensionFileFilter(null, new String[] { "jpeg", "jpg", "png" });
+				fileChooser.setFileFilter(fileFilter);
+				int returnValue = fileChooser.showOpenDialog(null);
+				File file = new File("D:/Image/image.jpg");
+				if (returnValue == JFileChooser.APPROVE_OPTION) {
+					file = fileChooser.getSelectedFile();
+				}
+				try {
+					scaleImage = ImageIO.read(file);
+					int xDime, yDime;
+					xDime = scaleImage.getWidth() > 1000 ? 1000 : scaleImage.getWidth();
+					yDime = scaleImage.getHeight() > 600 ? 600 : scaleImage.getHeight();
+					inputImage = new BufferedImage(xDime, yDime, BufferedImage.TYPE_INT_ARGB);
+					ScaleFilter scaleFilter = new ScaleFilter(xDime, yDime);
+					scaleFilter.filter(scaleImage, inputImage);
+					outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(),
+							BufferedImage.TYPE_INT_ARGB);
+					srcGrid = new WarpGrid(GRID_NUMBER, GRID_NUMBER, inputImage.getWidth(), inputImage.getHeight());
+					dstGrid = new WarpGrid(GRID_NUMBER, GRID_NUMBER, inputImage.getWidth(), inputImage.getHeight());
+					warpImage(1, 1, srcGrid.xGrid[1], srcGrid.yGrid[1]);
+					setPreferredSize(new Dimension(inputImage.getWidth(), inputImage.getHeight()));
+					// //drawLines(dstGrid, Color.BLACK);
+					repaint();
+				} catch (Exception e) {
+
+				}
 			}
 		});
 
@@ -120,9 +134,7 @@ class WarpImageTest extends JPanel {
 				clickedPoint = new Point(e.getX(), e.getY());
 				if (!isPolygon) {
 					warpImage(1, 1, dstGrid.xGrid[1], dstGrid.yGrid[1]);
-					Point circlePoint = new Point(e.getX() - radius, e.getY() - radius);
-					drawCircle(circlePoint, radii, Color.WHITE);
-					drawLines(dstGrid, Color.BLACK);
+
 					repaint();
 				} else {
 					if (!drawNow) {
@@ -138,6 +150,8 @@ class WarpImageTest extends JPanel {
 
 			@Override
 			public void mouseReleased(MouseEvent e) {
+				if (clickedPoint.x == e.getX() && clickedPoint.y == e.getY() && !drawNow)
+					return;
 				warpImage(1, 1, dstGrid.xGrid[1], dstGrid.yGrid[1]);
 				inputImage = outputImage;
 				outputImage = new BufferedImage(inputImage.getWidth(), inputImage.getHeight(),
@@ -145,7 +159,7 @@ class WarpImageTest extends JPanel {
 				srcGrid = new WarpGrid(GRID_NUMBER, GRID_NUMBER, inputImage.getWidth(), inputImage.getHeight());
 				dstGrid = new WarpGrid(GRID_NUMBER, GRID_NUMBER, inputImage.getWidth(), inputImage.getHeight());
 				warpImage(1, 1, dstGrid.xGrid[1], dstGrid.yGrid[1]);
-				drawLines(dstGrid, Color.BLACK);
+				// //drawLines(dstGrid, Color.BLACK);
 				if (isPolygon) {
 					if (!drawNow)
 						drawPolygon();
@@ -158,6 +172,8 @@ class WarpImageTest extends JPanel {
 		addMouseMotionListener(new MouseAdapter() {
 			@Override
 			public void mouseDragged(MouseEvent e) {
+				if (clickedPoint.x == e.getX() && clickedPoint.y == e.getY())
+					return;
 				if (isPolygon) {
 					if (drawNow) {
 						releasedPoint = new Point(e.getX(), e.getY());
@@ -171,47 +187,28 @@ class WarpImageTest extends JPanel {
 							dstGrid.xGrid[p.x] = dstGrid.xGrid[p.x] + deltaX;
 							dstGrid.yGrid[p.y] = dstGrid.yGrid[p.y] + deltaY;
 						}
+						for (int i = 0; i < xPoints.size(); i++) {
+							xPoints.set(i, xPoints.get(i) + deltaX);
+							yPoints.set(i, yPoints.get(i) + deltaY);
+						}
 						warpImage(1, 1, dstGrid.xGrid[1], dstGrid.yGrid[1]);
-						
+
 					} else {
 						releasedPoint = new Point(e.getX(), e.getY());
 						xPoints.add(releasedPoint.x);
 						yPoints.add(releasedPoint.y);
-						
+
 					}
 					drawPolygon();
-					drawLines(dstGrid, Color.BLACK);
+					// //drawLines(dstGrid, Color.BLACK);
 					repaint();
 
-				} else {
-					releasedPoint = new Point(e.getX(), e.getY());
-					Point circlePoint = new Point(e.getX() - radius, e.getY() - radius);
-					Point point = findIndex(clickedPoint.x, clickedPoint.y);
-
-					int deltaX = releasedPoint.x - clickedPoint.x;
-					int deltaY = releasedPoint.y - clickedPoint.y;
-					clickedPoint.x = releasedPoint.x;
-					clickedPoint.y = releasedPoint.y;
-					nearestPoints = new ArrayList<Point>();
-					findAllNearestPoints(point, radius);
-					for (Point p : nearestPoints) {
-						dstGrid.xGrid[p.x] = dstGrid.xGrid[p.x] + deltaX;
-						dstGrid.yGrid[p.y] = dstGrid.yGrid[p.y] + deltaY;
-					}
-					warpImage(1, 1, dstGrid.xGrid[1], dstGrid.yGrid[1]);
-					drawLines(dstGrid, Color.BLACK);
-					drawCircle(circlePoint, radii, Color.WHITE);
-					repaint();
 				}
 			}
 
 			@Override
 			public void mouseMoved(MouseEvent e) {
 
-				// warpImage(1, 1, dstGrid.xGrid[1], dstGrid.yGrid[1]);
-				// drawCircle(new Point(e.getX() - radius, e.getY() - radius),
-				// radii, Color.RED);
-				// repaint();
 			}
 		});
 	}
@@ -240,7 +237,9 @@ class WarpImageTest extends JPanel {
 	}
 
 	public Dimension getPreferredSize() {
-		return new Dimension(inputImage.getWidth(), inputImage.getHeight());
+		if (inputImage != null)
+			return new Dimension(inputImage.getWidth(), inputImage.getHeight());
+		return new Dimension(600, 600);
 	}
 
 	public void drawLines(WarpGrid srcGrid, Color color) {
